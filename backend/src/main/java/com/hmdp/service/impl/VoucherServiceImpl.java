@@ -13,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 import static com.hmdp.utils.RedisConstants.SECKILL_STOCK_KEY;
 
@@ -54,5 +56,9 @@ public class VoucherServiceImpl extends ServiceImpl<VoucherMapper, Voucher> impl
         seckillVoucherService.save(seckillVoucher);
         //保存秒杀库存到Redis中
         stringRedisTemplate.opsForValue().set(SECKILL_STOCK_KEY + voucher.getId(), voucher.getStock().toString());
+        Map<String, String> meta = new HashMap<>();
+        meta.put("begin", String.valueOf(voucher.getBeginTime().toInstant(java.time.ZoneOffset.UTC).toEpochMilli()));
+        meta.put("end", String.valueOf(voucher.getEndTime().toInstant(java.time.ZoneOffset.UTC).toEpochMilli()));
+        stringRedisTemplate.opsForHash().putAll("seckill:meta:" + voucher.getId(), meta);
     }
 }

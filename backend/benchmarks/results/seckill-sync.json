@@ -1,0 +1,17 @@
+{
+  "requests": 1000,
+  "concurrency": 100,
+  "durationSeconds": 1.161,
+  "throughputQps": 861.45,
+  "averageMs": 113.58,
+  "p50Ms": 61.73,
+  "p95Ms": 312.5,
+  "p99Ms": 408.81,
+  "maxMs": 439.11,
+  "transportErrors": 0,
+  "applicationSuccesses": 200,
+  "scenario": "seckill",
+  "mode": "sync-database",
+  "voucherId": 90002,
+  "availableTokens": 1000
+}

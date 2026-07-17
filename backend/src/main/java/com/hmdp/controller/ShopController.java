@@ -7,9 +7,13 @@ import com.hmdp.dto.Result;
 import com.hmdp.entity.Shop;
 import com.hmdp.service.IShopService;
 import com.hmdp.utils.SystemConstants;
+import com.hmdp.utils.CacheClient;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import java.util.concurrent.TimeUnit;
+
+import static com.hmdp.utils.RedisConstants.CACHE_SHOP_KEY;
 
 /**
  * <p>
@@ -25,6 +29,39 @@ public class ShopController {
 
     @Resource
     public IShopService shopService;
+
+    @Resource
+    private CacheClient cacheClient;
+
+    @GetMapping("/cache/metrics")
+    public Result cacheMetrics() {
+        return Result.ok(cacheClient.metrics());
+    }
+
+    @PostMapping("/cache/metrics/reset")
+    public Result resetCacheMetrics() {
+        cacheClient.resetMetrics();
+        return Result.ok();
+    }
+
+    @GetMapping("/benchmark/direct/{id}")
+    public Result queryShopDirectly(@PathVariable("id") Long id) {
+        Shop shop = shopService.getById(id);
+        return shop == null ? Result.fail("Business not found.") : Result.ok(shop);
+    }
+
+    @GetMapping("/benchmark/redis/{id}")
+    public Result queryShopFromRedis(@PathVariable("id") Long id) {
+        Shop shop = cacheClient.queryRedisOnly(
+                CACHE_SHOP_KEY,
+                id,
+                Shop.class,
+                shopService::getById,
+                30L,
+                TimeUnit.MINUTES
+        );
+        return shop == null ? Result.fail("Business not found.") : Result.ok(shop);
+    }
 
     /**
      * 根据id查询商铺信息

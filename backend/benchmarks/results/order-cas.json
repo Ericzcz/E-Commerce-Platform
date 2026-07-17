@@ -1,0 +1,9 @@
+{
+  "rounds": 100,
+  "paid": 88,
+  "cancelled": 12,
+  "invalidStates": 0,
+  "doubleWinnersOrLosers": 0,
+  "restoredDatabaseStock": 12,
+  "durationMillis": 192
+}

@@ -5,16 +5,28 @@ local voucherid = ARGV[1]
 local userid = ARGV[2]
 --1.3.订单id
 local orderid = ARGV[3]
+local now = tonumber(ARGV[4])
 
 --2.Key列表
 --2.1.库存key
 local stockKey = 'seckill:stock:' .. voucherid
 --2.2.订单key
 local orderKey = 'seckill:order:' .. voucherid
+local metaKey = 'seckill:meta:' .. voucherid
 
 --3.脚本业务
+local beginTime = redis.call('HGET', metaKey, 'begin')
+local endTime = redis.call('HGET', metaKey, 'end')
+if (not beginTime or not endTime or now < tonumber(beginTime)) then
+    return 3
+end
+if (now > tonumber(endTime)) then
+    return 4
+end
+
 --3.1.判断库存是否充足
-if (tonumber(redis.call('get', stockKey)) <= 0) then
+local stock = redis.call('get', stockKey)
+if (not stock or tonumber(stock) <= 0) then
     --3.1.1库存不足
     return 1
 end

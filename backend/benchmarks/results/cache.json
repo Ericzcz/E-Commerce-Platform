@@ -1,0 +1,57 @@
+{
+  "scenario": "shop-cache",
+  "shopId": 1,
+  "directDatabase": {
+    "requests": 10000,
+    "concurrency": 100,
+    "durationSeconds": 1.865,
+    "throughputQps": 5362.81,
+    "averageMs": 17.07,
+    "p50Ms": 15.71,
+    "p95Ms": 32.89,
+    "p99Ms": 43.88,
+    "maxMs": 71.71,
+    "transportErrors": 0,
+    "applicationSuccesses": 10000
+  },
+  "redisOnly": {
+    "requests": 10000,
+    "concurrency": 100,
+    "durationSeconds": 1.584,
+    "throughputQps": 6313.59,
+    "averageMs": 14.5,
+    "p50Ms": 13.47,
+    "p95Ms": 28.73,
+    "p99Ms": 36.56,
+    "maxMs": 61.01,
+    "transportErrors": 0,
+    "applicationSuccesses": 10000
+  },
+  "multiLevelCache": {
+    "requests": 10000,
+    "concurrency": 100,
+    "durationSeconds": 1.215,
+    "throughputQps": 8232.77,
+    "averageMs": 11.19,
+    "p50Ms": 10.32,
+    "p95Ms": 22.51,
+    "p99Ms": 30.31,
+    "maxMs": 59.48,
+    "transportErrors": 0,
+    "applicationSuccesses": 10000
+  },
+  "cacheMetrics": {
+    "requests": 10000,
+    "localHits": 10000,
+    "redisHits": 0,
+    "databaseLoads": 0,
+    "rebuilds": 0,
+    "overallHitRate": 1.0,
+    "caffeine": "CacheStats{hitCount=10030, missCount=20, loadSuccessCount=0, loadFailureCount=0, totalLoadTime=0, evictionCount=0, evictionWeight=0}",
+    "localSize": 1
+  },
+  "qpsImprovement": 53.52,
+  "p99Reduction": 30.93,
+  "localVsRedisQpsImprovement": 30.4,
+  "localVsRedisP99Reduction": 17.1
+}

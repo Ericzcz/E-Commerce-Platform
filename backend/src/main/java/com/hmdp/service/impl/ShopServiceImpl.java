@@ -9,6 +9,7 @@ import com.hmdp.dto.Result;
 import com.hmdp.entity.Shop;
 import com.hmdp.mapper.ShopMapper;
 import com.hmdp.service.IShopService;
+import com.hmdp.service.CacheInvalidationService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.utils.CacheClient;
 import com.hmdp.utils.RedisData;
@@ -47,6 +48,9 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
 
     @Resource
     private CacheClient cacheClient;
+
+    @Resource
+    private CacheInvalidationService cacheInvalidationService;
 
     @Override
     public Result queryShopByType(Integer typeId, Integer current, Double x, Double y) {
@@ -111,31 +115,26 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
         if (id == null) {
             return Result.fail("Business ID is required.");
         }
-        //1.更新数据库
-        updateById(shop);
-        //2.删除缓存
-        stringRedisTemplate.delete(CACHE_SHOP_KEY + id);
+        boolean updated = updateById(shop);
+        if (!updated) {
+            return Result.fail("Business update failed.");
+        }
+        cacheInvalidationService.invalidate(CACHE_SHOP_KEY + id);
         return Result.ok();
     }
 
     @Override
     public Result queryById(Long id){
-        //缓存穿透
-        //Shop shop = queryWithPassThrough(id);
         Shop shop = cacheClient
-                .queryWithPassThrough(CACHE_SHOP_KEY, id, Shop.class, this::getById, CACHE_SHOP_TTL, TimeUnit.MINUTES);
-
-
-        //互斥锁解决缓存击穿
-        //Shop shop = queryWithMutex(id);
-
-        //用逻辑过期解决缓存击穿
-        //Shop shop = queryWithLogicalExpire(id);
-//        Shop shop = cacheClient
-//                .queryWithLogicalExpire(CACHE_SHOP_KEY, LOCK_SHOP_KEY, id, Shop.class, this::getById, CACHE_SHOP_TTL, TimeUnit.MINUTES);
-
-
-
+                .queryWithMultiLevelCache(
+                        CACHE_SHOP_KEY,
+                        LOCK_SHOP_KEY,
+                        id,
+                        Shop.class,
+                        this::getById,
+                        CACHE_SHOP_TTL,
+                        TimeUnit.MINUTES
+                );
         if (shop == null) {
             return Result.fail("Business not found.");
         }

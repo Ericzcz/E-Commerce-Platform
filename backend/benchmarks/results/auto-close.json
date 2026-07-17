@@ -1,0 +1,9 @@
+{
+  "expiredOrders": 1,
+  "taskExecutions": 2,
+  "finalStatus": 4,
+  "mysqlStockRestored": 1,
+  "redisStockRestored": 1,
+  "duplicateCompensations": 0,
+  "durationMillis": 18
+}
