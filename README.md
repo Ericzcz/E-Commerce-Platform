@@ -1,29 +1,32 @@
-# 黑马点评（Redis 高并发增强版）
+# HM Dianping — Redis High-Concurrency Edition
 
-一个基于 Spring Boot、MySQL 和 Redis 的本地生活点评项目。项目在基础的店铺查询、用户登录、达人探店、关注 Feed 等业务之上，重点实现了多级缓存、动态热点识别、异步秒杀下单、订单状态并发控制与失败补偿，并提供可重复执行的性能测试脚本和测试报告。
+A local lifestyle review platform built with Spring Boot, MySQL, and Redis. In addition to shop discovery, user authentication, reviews, social following, and feeds, this version focuses on multi-level caching, dynamic hot-key detection, asynchronous flash-sale ordering, concurrent order-state control, and failure compensation.
 
-## 项目亮点
+The repository also includes reproducible benchmark scripts, raw results, and a performance report.
 
-- **两级缓存**：使用 `Caffeine → Redis → MySQL` 查询链路，结合 Cache Aside、缓存空值和逻辑过期处理缓存穿透与热点 Key 失效问题。
-- **热点识别**：通过 Redis Lua 滑动窗口原子统计访问频率，热点数据自动晋升至 Caffeine；使用 Redis Stream 通知多实例失效本地缓存。
-- **缓存重建**：使用 Redisson 分布式锁与有界线程池异步重建缓存，锁竞争失败时优先返回可用旧数据。
-- **高并发秒杀**：Redis Lua 原子完成库存校验、库存预扣和一人一单校验，Redis Stream Consumer Group 异步落库。
-- **可靠订单消费**：事务成功后 ACK，支持 Pending List 恢复、有限重试、死信 Stream、库存与购买资格补偿。
-- **订单状态管理**：SpringTask 定时关闭超时订单，通过 CAS 条件更新解决支付与关单竞争，并保证库存只补偿一次。
-- **社交与位置服务**：支持博客点赞、关注 Feed、共同关注、签到统计，以及基于 Redis GEO 的附近店铺查询。
+## Highlights
 
-## 技术栈
+- **Multi-level caching:** Implements a `Caffeine → Redis → MySQL` lookup path with Cache Aside, null-value caching, and logical expiration to handle cache penetration and hot-key expiration.
+- **Dynamic hot-key detection:** Uses a Redis Lua sliding window to atomically measure access frequency and promote hot data to Caffeine.
+- **Cross-instance invalidation:** Broadcasts local-cache invalidation events through Redis Stream when shop data changes.
+- **Safe cache rebuilding:** Uses Redisson distributed locks and a bounded thread pool to rebuild expired cache entries asynchronously while serving stale-but-valid data during lock contention.
+- **High-concurrency flash sales:** Uses Redis Lua to atomically validate stock, enforce one order per user, reserve inventory, and append order events to Redis Stream.
+- **Reliable order consumption:** Supports Consumer Groups, transaction-before-ACK semantics, Pending List recovery, bounded retries, dead-letter streams, and inventory/eligibility compensation.
+- **Order-state management:** Closes expired unpaid orders with Spring Scheduling and resolves payment-versus-close races through conditional CAS updates.
+- **Social and location features:** Supports review likes, following feeds, mutual follows, daily check-ins, and Redis GEO-based nearby-shop queries.
 
-| 分类 | 技术 |
+## Tech Stack
+
+| Category | Technologies |
 | --- | --- |
-| 后端 | Java 8+、Spring Boot 2.3.12、Spring MVC |
-| 数据访问 | MyBatis-Plus 3.4.3、MySQL 8 |
-| 缓存与消息 | Redis、Lettuce、Caffeine、Redis Stream |
-| 并发控制 | Redis Lua、Redisson、CAS、线程池 |
-| 前端 | Vue 2、Element UI、Axios、Nginx |
-| 测试 | JUnit、Python HTTP Benchmark |
+| Backend | Java 8+, Spring Boot 2.3.12, Spring MVC |
+| Persistence | MyBatis-Plus 3.4.3, MySQL 8 |
+| Cache and messaging | Redis, Lettuce, Caffeine, Redis Stream |
+| Concurrency | Redis Lua, Redisson, CAS, thread pools |
+| Frontend | Vue 2, Element UI, Axios, Nginx |
+| Testing | JUnit, Python HTTP benchmarks |
 
-## 系统架构
+## Architecture
 
 ```text
 Browser
@@ -36,53 +39,53 @@ Nginx :8080 ── /api/* ──▶ Spring Boot :8081
           Caffeine / Redis             MySQL :3307
                  │                         ▲
                  └── Redis Stream ─────────┘
-                     异步订单 / 缓存失效
+                    Orders / invalidation
 ```
 
-## 目录结构
+## Project Structure
 
 ```text
 .
-├── backend/                       # Spring Boot 后端
+├── backend/                       # Spring Boot backend
 │   ├── src/main/java/com/hmdp/
-│   │   ├── controller/            # HTTP 接口
-│   │   ├── service/               # 业务与异步消费者
-│   │   ├── mapper/                # MyBatis-Plus Mapper
-│   │   ├── config/                # MVC、Redisson、数据库配置
-│   │   └── utils/                 # 缓存、锁、ID 生成等工具
+│   │   ├── controller/            # HTTP endpoints
+│   │   ├── service/               # Business logic and consumers
+│   │   ├── mapper/                # MyBatis-Plus mappers
+│   │   ├── config/                # MVC, Redisson, and database config
+│   │   └── utils/                 # Cache, locks, and ID generation
 │   ├── src/main/resources/
-│   │   ├── db/hmdp.sql            # 数据库结构与示例数据
-│   │   └── *.lua                  # 秒杀、补偿、热点识别脚本
-│   └── benchmarks/                # 压测脚本、结果与报告
-├── frontend/                      # Vue 静态页面与 Nginx
-└── PROJECT_TARGET_CHECKLIST.md    # 功能实现与验收记录
+│   │   ├── db/hmdp.sql            # Schema and sample data
+│   │   └── *.lua                  # Flash sale, compensation, hot keys
+│   └── benchmarks/                # Scripts, raw results, and report
+├── frontend/                      # Vue static pages and Nginx
+└── PROJECT_TARGET_CHECKLIST.md    # Implementation and validation notes
 ```
 
-## 快速开始
+## Getting Started
 
-### 1. 环境要求
+### 1. Prerequisites
 
-- JDK 8 或 11（推荐 JDK 11）
+- JDK 8 or 11 (JDK 11 recommended)
 - Maven 3.6+
 - MySQL 8.0
 - Redis 6.2+
-- Nginx（仓库内已包含配置）
-- Python 3（仅运行压测时需要）
+- Nginx
+- Python 3, only for benchmarks
 
-项目默认连接参数如下：
+The default local configuration is:
 
-| 服务 | 地址 | 用户名 / 密码 |
+| Service | Address | Credentials |
 | --- | --- | --- |
 | MySQL | `127.0.0.1:3307/hmdp` | `root / 123456` |
-| Redis | `127.0.0.1:6380` | 无密码 |
-| 后端 | `http://127.0.0.1:8081` | - |
-| 前端 | `http://127.0.0.1:8080` | - |
+| Redis | `127.0.0.1:6380` | No password |
+| Backend | `http://127.0.0.1:8081` | — |
+| Frontend | `http://127.0.0.1:8080` | — |
 
-如本地环境不同，请修改 `backend/src/main/resources/application.yaml`。Redisson 的地址目前配置在 `backend/src/main/java/com/hmdp/config/RedissonConfig.java`。
+If your local environment differs, update `backend/src/main/resources/application.yaml`. Redisson addresses are currently configured in `backend/src/main/java/com/hmdp/config/RedissonConfig.java`.
 
-### 2. 启动基础服务
+### 2. Start MySQL and Redis
 
-可使用本机服务，也可以用 Docker 快速启动：
+Use existing local services or start containers:
 
 ```bash
 docker run -d --name hmdp-mysql \
@@ -96,7 +99,7 @@ docker run -d --name hmdp-redis \
   redis:6.2-alpine
 ```
 
-导入数据库结构和示例数据：
+Import the schema and sample data:
 
 ```bash
 docker exec -i hmdp-mysql \
@@ -104,16 +107,16 @@ docker exec -i hmdp-mysql \
   < backend/src/main/resources/db/hmdp.sql
 ```
 
-应用启动时还会幂等补充订单唯一索引和超时订单扫描索引。
+At startup, the application also adds the order uniqueness index and expired-order scan index if they do not already exist.
 
-### 3. 启动后端
+### 3. Start the Backend
 
 ```bash
 cd backend
 mvn spring-boot:run
 ```
 
-也可以先构建再运行：
+Alternatively, build and run the packaged application:
 
 ```bash
 cd backend
@@ -121,61 +124,63 @@ mvn clean package
 java -jar target/hm-dianping-0.0.1-SNAPSHOT.jar
 ```
 
-### 4. 启动前端
+### 4. Start the Frontend
 
-macOS / Linux：
+On macOS or Linux:
 
 ```bash
 nginx -p "$PWD/frontend/" -c conf/nginx.conf
 ```
 
-Windows 可在 `frontend` 目录运行：
+On Windows, run the bundled executable from the `frontend` directory:
 
 ```powershell
 .\nginx.exe
 ```
 
-浏览器访问 `http://localhost:8080`。Nginx 会将 `/api/*` 请求代理到 `http://127.0.0.1:8081`。
+Open `http://localhost:8080`. Nginx serves the frontend and proxies `/api/*` requests to `http://127.0.0.1:8081`.
 
-> 登录验证码为开发模式：调用发送验证码接口后，验证码会输出在后端控制台。
+> SMS delivery is simulated in development. After requesting a verification code, read it from the backend console.
 
-## 核心流程
+## Core Workflows
 
-### 店铺缓存
+### Shop Caching
 
 ```text
-请求 → Caffeine → Redis → MySQL
-          │          │
-          └─ 热点晋升 └─ 空值缓存 / 逻辑过期
-                         └─ Redisson 锁 + 异步重建
+Request → Caffeine → Redis → MySQL
+             │          │
+             │          ├─ Null-value caching
+             │          └─ Logical expiration
+             └─ Hot-key promotion
+                          └─ Redisson lock + async rebuild
 ```
 
-店铺更新成功后删除 Redis 缓存、失效本地缓存，并通过 Stream 向其他实例广播失效事件；删除失败时进入补偿重试流程，TTL 作为最终一致性兜底。
+After a successful shop update, the service deletes the Redis entry, invalidates the local cache, and broadcasts an invalidation event to other instances. Failed invalidations enter a retry flow, with TTL serving as the final consistency safeguard.
 
-### 秒杀下单
+### Flash-Sale Ordering
 
 ```text
-请求
-  └─ Lua：校验库存 + 一人一单 + 预扣库存
+Request
+  └─ Lua: validate stock + enforce one order + reserve stock
        └─ XADD stream.orders
             └─ Consumer Group
-                 └─ MySQL 条件扣库存 + 创建订单
-                      ├─ 成功：ACK
-                      └─ 失败：重试 → 死信 → Redis 补偿
+                 └─ Conditional MySQL stock update + create order
+                      ├─ Success: ACK
+                      └─ Failure: retry → dead letter → compensate
 ```
 
-数据库通过 `(user_id, voucher_id)` 唯一索引兜底防重，库存更新包含 `stock > 0` 条件，消费端使用订单 ID 和唯一索引保证幂等。
+A unique `(user_id, voucher_id)` database index prevents duplicate orders. Stock updates require `stock > 0`, while order IDs and the unique index make Stream consumption idempotent.
 
-## 测试
+## Testing
 
-运行后端测试：
+Run the backend test suite:
 
 ```bash
 cd backend
 mvn test
 ```
 
-运行缓存压测：
+Run the cache benchmark:
 
 ```bash
 cd backend
@@ -185,7 +190,7 @@ python3 benchmarks/http_benchmark.py cache \
   --shop-id 1
 ```
 
-运行秒杀压测前，需要创建有效的测试券、初始化 Redis 库存，并在 `backend/tokens.txt` 中准备不同用户的登录 Token：
+Before running the flash-sale benchmark, create an active test voucher, initialize its Redis stock, and add tokens for distinct users to `backend/tokens.txt`:
 
 ```bash
 cd backend
@@ -196,49 +201,49 @@ python3 benchmarks/http_benchmark.py seckill \
   --tokens tokens.txt
 ```
 
-更完整的准备与验收方式见 [压测说明](backend/benchmarks/README.md)。
+See the [benchmark instructions](backend/benchmarks/README.md) for preparation and correctness checks.
 
-## 性能结果
+## Performance Results
 
-以下为本机 macOS、JDK 11、Docker MySQL/Redis 环境下的受控测试结果，不代表生产环境容量。
+The following results were measured on a local macOS development machine using JDK 11 and Docker-based MySQL/Redis. They describe a controlled benchmark and should not be interpreted as production capacity.
 
-| 场景 | QPS | P99 |
+| Scenario | QPS | P99 |
 | --- | ---: | ---: |
-| MySQL 直查 | 5,362.81 | 43.88 ms |
-| Redis 单级缓存 | 6,313.59 | 36.56 ms |
+| Direct MySQL | 5,362.81 | 43.88 ms |
+| Redis-only cache | 6,313.59 | 36.56 ms |
 | Caffeine + Redis | 8,232.77 | 30.31 ms |
-| 同步秒杀下单 | 861.45 | 408.81 ms |
-| Lua + Stream 异步下单 | 3,668.06 | 68.59 ms |
+| Synchronous flash-sale ordering | 861.45 | 408.81 ms |
+| Lua + Stream asynchronous ordering | 3,668.06 | 68.59 ms |
 
-在 1,000 个不同用户并发抢购 200 份库存的测试中，最终创建 200 个订单，重复订单和超卖订单均为 0，Redis 与 MySQL 剩余库存均为 0。异步版本吞吐量为同步基线的 4.26 倍，P99 降低 83.22%。
+In a test where 1,000 distinct users competed for 200 units, the system created exactly 200 orders with zero overselling and zero duplicate orders. Both Redis and MySQL ended with zero remaining stock. The asynchronous version delivered 4.26× the throughput of the synchronous baseline and reduced P99 latency by 83.22%.
 
-原始数据与测试边界见 [性能与正确性报告](backend/benchmarks/PERFORMANCE_REPORT.md)。
+See the [performance and correctness report](backend/benchmarks/PERFORMANCE_REPORT.md) for raw results, methodology, and test limitations.
 
-## 常用接口
+## Common Endpoints
 
-| 功能 | 方法与路径 |
+| Feature | Method and path |
 | --- | --- |
-| 发送验证码 / 登录 | `POST /user/code`、`POST /user/login` |
-| 查询店铺 | `GET /shop/{id}` |
-| 附近店铺 | `GET /shop/of/type` |
-| 发布 / 查询博客 | `POST /blog`、`GET /blog/hot` |
-| 关注与共同关注 | `PUT /follow/{id}/{isFollow}`、`GET /follow/common/{id}` |
-| 关注 Feed | `GET /blog/of/follow` |
-| 用户签到 | `POST /user/sign` |
-| 秒杀下单 | `POST /voucher-order/seckill/{id}` |
-| 支付订单 | `POST /voucher-order/{id}/pay` |
-| 缓存指标 | `GET /shop/cache/metrics` |
-| 订单消费指标 | `GET /voucher-order/metrics` |
+| Send code / log in | `POST /user/code`, `POST /user/login` |
+| Get shop details | `GET /shop/{id}` |
+| Find nearby shops | `GET /shop/of/type` |
+| Publish / browse reviews | `POST /blog`, `GET /blog/hot` |
+| Follow / mutual follows | `PUT /follow/{id}/{isFollow}`, `GET /follow/common/{id}` |
+| Following feed | `GET /blog/of/follow` |
+| Daily check-in | `POST /user/sign` |
+| Place a flash-sale order | `POST /voucher-order/seckill/{id}` |
+| Pay for an order | `POST /voucher-order/{id}/pay` |
+| Cache metrics | `GET /shop/cache/metrics` |
+| Order-consumer metrics | `GET /voucher-order/metrics` |
 
-通过前端访问时，请在路径前添加 `/api`；直接请求后端 `8081` 端口时无需添加。
+Prefix paths with `/api` when accessing them through the frontend. Do not add the prefix when calling the backend directly on port `8081`.
 
-## 注意事项
+## Notes
 
-- 当前配置包含开发环境数据库密码，只适合本地学习；部署时应改用环境变量或外部配置。
-- `backend/tokens.txt` 是压测用临时 Token 文件，不应提交真实凭证。
-- `RedissonConfig` 还定义了 `6381`、`6382` 两个客户端供多节点锁测试使用；正常运行主流程只依赖 `6380`，执行相关 Redisson 测试时需额外启动对应 Redis 实例。
-- 上传图片默认写入前端静态资源目录，部署时请改为对象存储或独立文件服务。
+- The repository contains local development database credentials. Use environment variables or external configuration before deployment.
+- `backend/tokens.txt` is a benchmark fixture and must not contain real credentials.
+- `RedissonConfig` also defines clients for ports `6381` and `6382` for multi-node locking tests. The main application flow only requires Redis on `6380`; start the additional instances when running the related Redisson tests.
+- Uploaded images are stored under the frontend's static-resource directory by default. Use object storage or a dedicated file service in production.
 
-## 致谢
+## Acknowledgements
 
-项目基于黑马程序员 Redis 实战课程中的“黑马点评”案例扩展，主要用于学习缓存一致性、高并发秒杀、异步消息消费和并发状态管理。
+This project extends the HM Dianping example from the Heima Redis course. It is intended for learning cache consistency, high-concurrency flash sales, asynchronous message processing, and concurrent order-state management.
